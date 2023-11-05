@@ -1163,31 +1163,25 @@ if(cta_number != 0 && cta_number%128 == 0) {
         }
         return a->cta_progress() < b->cta_progress();
     }); 
-    // printf("chaging the scheduling poilcy \n\n\n\n\n\n");
+    printf("changing the scheduling poilcy to KAWS \n");
 
 }
 else order_warps();
 
   // justa I am checking which warp belongs to which cta 
-  limit ++;
-  for (std::vector<shd_warp_t *>::const_iterator iter =
-          m_next_cycle_prioritized_warps.begin();
-       iter != m_next_cycle_prioritized_warps.end(); iter++){
-        shd_warp_t *warp = *iter;
-        class shader_core_ctx * shd_core = warp->get_shader();
-        printf("%d Warp %u belongs to CTA %u  and s_mid is = %d\n",limit, warp->get_warp_id(), warp->get_cta_id(),shd_core->get_shader_id());
-  }
+  // limit ++;
+  // for (std::vector<shd_warp_t *>::const_iterator iter =
+  //         m_next_cycle_prioritized_warps.begin();
+  //      iter != m_next_cycle_prioritized_warps.end(); iter++){
+  //       shd_warp_t *warp = *iter;
+  //       class shader_core_ctx * shd_core = warp->get_shader();
+  //       printf("%d Warp %u belongs to CTA %u  and s_mid is = %d\n",limit, warp->get_warp_id(), warp->get_cta_id(),shd_core->get_shader_id());
+  // }
 
   for (std::vector<shd_warp_t *>::const_iterator iter =
            m_next_cycle_prioritized_warps.begin();
        iter != m_next_cycle_prioritized_warps.end(); iter++) {
 
-        // justa
-        // (*iter)->get_cta_id();
-        // (*iter)->get_warp_id();
-        // (*iter)->get_dynamic_warp_id();
-
-        // printf("(*iter)->get_warp_id() = %u , (*iter)->get_cta_id() = %u , (*iter)->get_dynamic_warp_id = %u \n", (*iter)->get_warp_id(), (*iter)->get_cta_id(), (*iter)->get_dynamic_warp_id());
     // Don't consider warps that are not yet valid
     if ((*iter) == NULL || (*iter)->done_exit()) {
       continue;
