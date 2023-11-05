@@ -99,10 +99,23 @@ class thread_ctx_t {
 
 class shd_warp_t {
  public:
+//  justa added two variables to store cta progress 
+// map<m_cta_id, progresss> nameofvariable
+  std::map<unsigned int, int> progress;
+
+  // function to return cta_progress and warp progress justa added
+  int cta_progress(){
+    return progress[m_cta_id];
+  }
+  int warp_progress(){
+    return get_n_completed(); // return the thread count that has completed
+  }
+
   shd_warp_t(class shader_core_ctx *shader, unsigned warp_size)
       : m_shader(shader), m_warp_size(warp_size) {
     m_stores_outstanding = 0;
     m_inst_in_pipeline = 0;
+    progress[m_cta_id]=0; // initialize cta progress to 0
     reset();
   }
   void reset() {
@@ -233,6 +246,7 @@ class shd_warp_t {
     m_inst_in_pipeline--;
   }
 
+  // justa important this is a warp class which has warp id cta id dynamic warp id and also the shader core class variable which will return the whole shader core 
   unsigned get_cta_id() const { return m_cta_id; }
 
   unsigned get_dynamic_warp_id() const { return m_dynamic_warp_id; }
@@ -1901,6 +1915,16 @@ class shader_core_ctx : public core_t {
            m_kernel->get_uid(), m_kernel->name().c_str());
   }
 
+// justa to get the shader id as it is protected member 
+  unsigned int get_shader_id (){
+    return m_sid;
+  }
+
+// justa to get the warp info it is protected member 
+  std::vector<shd_warp_t *> get_m_warp(){
+    return m_warp;
+  }
+
   // accessors
   bool fetch_unit_response_buffer_full() const;
   bool ldst_unit_response_buffer_full() const;
@@ -2183,6 +2207,7 @@ class shader_core_ctx : public core_t {
   unsigned long long m_last_inst_gpu_sim_cycle;
   unsigned long long m_last_inst_gpu_tot_sim_cycle;
 
+// justa is using this to get the shader id 
   // general information
   unsigned m_sid;  // shader id
   unsigned m_tpc;  // texture processor cluster id (aka, node id when using
@@ -2213,7 +2238,7 @@ class shader_core_ctx : public core_t {
   read_only_cache *m_L1I;  // instruction cache
   int m_last_warp_fetched;
 
-  // decode/dispatch
+  // decode/dispatch justa core also has its array of warps seeee 
   std::vector<shd_warp_t *> m_warp;  // per warp information array
   barrier_set_t m_barriers;
   ifetch_buffer_t m_inst_fetch_buffer;

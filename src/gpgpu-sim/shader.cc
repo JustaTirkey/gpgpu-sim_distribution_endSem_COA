@@ -52,6 +52,11 @@
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
 
+// justa
+std::map<int, int> cta_number_to_m_sid;
+std::map<int, int> cta_number_to_cyclenum;
+int cta_number = 0;
+
 mem_fetch *shader_core_mem_fetch_allocator::alloc(
     new_addr_type addr, mem_access_type type, unsigned size, bool wr,
     unsigned long long cycle) const {
@@ -1127,6 +1132,9 @@ void scheduler_unit::order_by_priority(
   }
 }
 
+// justa
+int counter_again_cta_number=0;
+int limit =0;
 void scheduler_unit::cycle() {
   SCHED_DPRINTF("scheduler_unit::cycle()\n");
   bool valid_inst =
@@ -1136,10 +1144,50 @@ void scheduler_unit::cycle() {
                              // waiting for pending register writes
   bool issued_inst = false;  // of these we issued one
 
-  order_warps();
+  // justa calculate the progress of each cta every cycle
+  for (std::vector<shd_warp_t *>::const_iterator iter =
+          m_next_cycle_prioritized_warps.begin();
+       iter != m_next_cycle_prioritized_warps.end(); iter++){
+        shd_warp_t *warp = *iter;
+        int prog = warp->warp_progress();
+        warp->progress[warp->get_cta_id()]+=prog;
+  }
+
+
+// justa KAWS scheduler or shorting by cta progress every 128 cta means 1 kernel 
+if(cta_number != 0 && cta_number%128 == 0) {
+  std::sort(m_next_cycle_prioritized_warps.begin(), m_next_cycle_prioritized_warps.end(), 
+    [](shd_warp_t* a, shd_warp_t* b) {
+        if (a->progress == b->progress) {
+            return a->get_warp_id() < b->get_warp_id();
+        }
+        return a->cta_progress() < b->cta_progress();
+    }); 
+    // printf("chaging the scheduling poilcy \n\n\n\n\n\n");
+
+}
+else order_warps();
+
+  // justa I am checking which warp belongs to which cta 
+  limit ++;
+  for (std::vector<shd_warp_t *>::const_iterator iter =
+          m_next_cycle_prioritized_warps.begin();
+       iter != m_next_cycle_prioritized_warps.end(); iter++){
+        shd_warp_t *warp = *iter;
+        class shader_core_ctx * shd_core = warp->get_shader();
+        printf("%d Warp %u belongs to CTA %u  and s_mid is = %d\n",limit, warp->get_warp_id(), warp->get_cta_id(),shd_core->get_shader_id());
+  }
+
   for (std::vector<shd_warp_t *>::const_iterator iter =
            m_next_cycle_prioritized_warps.begin();
        iter != m_next_cycle_prioritized_warps.end(); iter++) {
+
+        // justa
+        // (*iter)->get_cta_id();
+        // (*iter)->get_warp_id();
+        // (*iter)->get_dynamic_warp_id();
+
+        // printf("(*iter)->get_warp_id() = %u , (*iter)->get_cta_id() = %u , (*iter)->get_dynamic_warp_id = %u \n", (*iter)->get_warp_id(), (*iter)->get_cta_id(), (*iter)->get_dynamic_warp_id());
     // Don't consider warps that are not yet valid
     if ((*iter) == NULL || (*iter)->done_exit()) {
       continue;
@@ -4219,6 +4267,12 @@ unsigned simt_core_cluster::issue_block2core() {
         //            m_config->max_cta(*kernel)) ) {
         m_core[core]->can_issue_1block(*kernel)) {
       m_core[core]->issue_block2core(*kernel);
+
+      // justa
+      cta_number++;
+      cta_number_to_m_sid[cta_number]=m_core[core]->get_shader_id();
+      printf("CTA %d issued to shader core id %d\n",cta_number,cta_number_to_m_sid[cta_number]);
+
       num_blocks_issued++;
       m_cta_issue_next_core = core;
       break;
