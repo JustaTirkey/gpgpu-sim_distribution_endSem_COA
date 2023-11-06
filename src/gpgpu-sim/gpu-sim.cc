@@ -555,7 +555,7 @@ void gpgpu_sim_config::reg_options(option_parser_t opp) {
   power_config::reg_options(opp);
   // justa change the number of cycle so that it will terminated prematurely  
   option_parser_register(opp, "-gpgpu_max_cycle", OPT_INT64, &gpu_max_cycle_opt,
-                         "terminates gpu simulation early (0 = no limit)", "10000");
+                         "terminates gpu simulation early (0 = no limit)", "0");
   option_parser_register(opp, "-gpgpu_max_insn", OPT_INT64, &gpu_max_insn_opt,
                          "terminates gpu simulation early (0 = no limit)", "0");
   option_parser_register(opp, "-gpgpu_max_cta", OPT_INT32, &gpu_max_cta_opt,

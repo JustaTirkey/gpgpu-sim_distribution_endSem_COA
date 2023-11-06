@@ -57,8 +57,10 @@ extern long long int inst_ccount = 0;
 extern long long int extra = 0;
 
 // justa
-std::map<unsigned int, long long int> cta_id_to_progress;
+std::map<unsigned int, long long int> cta_id_to_prog;
+std::map<unsigned int, unsigned int> warp_id_to_cta_id;
 std::map<int, unsigned int> cta_number_to_m_sid;
+long long int w_icount =0;
 int cta_number = 0;
 int last_cta_issued;
 
@@ -1149,32 +1151,29 @@ void scheduler_unit::cycle() {
                              // waiting for pending register writes
   bool issued_inst = false;  // of these we issued one
 
-  // justa calculate the progress of each cta every cycle
+  // justa initializing the cta_id_to_prog map if not already present;
   for (std::vector<shd_warp_t *>::const_iterator iter =
           m_next_cycle_prioritized_warps.begin();
        iter != m_next_cycle_prioritized_warps.end(); iter++){
         shd_warp_t *warp = *iter;
-        int prog = warp->warp_progress();
-        auto it = cta_id_to_progress.find(warp->get_cta_id());
-        if(it != cta_id_to_progress.end())
-          cta_id_to_progress[warp->get_cta_id()]+=prog;
-        else
-          cta_id_to_progress[warp->get_cta_id()]=prog;
+        auto it = cta_id_to_prog.find(warp->get_cta_id());
+        if(it == cta_id_to_prog.end())
+          cta_id_to_prog[warp->get_cta_id()] = 0;
   }
 
 
 // justa KAWS scheduler or shorting by cta progress every 128 cta means 1 kernel 
 // if(last_cta_issued == cta_number) printf(" %d ", cta_number);
-if(cta_number != 0 && cta_number%128 == 0) {
+if(cta_number != 0 && cta_number%last_cta_issued == 0) {
   std::sort(m_next_cycle_prioritized_warps.begin(), m_next_cycle_prioritized_warps.end(), 
     [](shd_warp_t* a, shd_warp_t* b) {
-        if (cta_id_to_progress[a->get_cta_id()] == cta_id_to_progress[b->get_cta_id()]) {
-            return a->get_warp_id() < b->get_warp_id();
+        if (cta_id_to_prog[a->get_cta_id()] != cta_id_to_prog[b->get_cta_id()]) {
+        return cta_id_to_prog[a->get_cta_id()] < cta_id_to_prog[a->get_cta_id()];
         }
-        return cta_id_to_progress[a->get_cta_id()] < cta_id_to_progress[a->get_cta_id()];
+        return a->get_warp_id() < b->get_warp_id();
     }); 
-    // printf("changing the scheduling poilcy to KAWS");
 
+    // printf("changing the scheduling poilcy to KAWS %lld %lld  ", cta_id_to_prog[a->get_cta_id()], cta_id_to_prog[a->get_cta_id()]);
 }
 else{
   // printf("Ever has been ????????????");
@@ -1447,6 +1446,11 @@ else{
         do_on_warp_issued(warp_id, issued, iter);
       }
       checked++;
+      
+      // justa calculate the progress of each cta every cycle
+      w_icount = pI->active_count();
+      unsigned int cta_id_local = warp_id_to_cta_id[pI->warp_id_func()];
+      cta_id_to_prog[cta_id_local] += w_icount;
     }
     if (issued) {
       // This might be a bit inefficient, but we need to maintain
@@ -3287,12 +3291,12 @@ unsigned int shader_core_config::max_cta(const kernel_info_t &k) const {
   result = gs_min2(result, result_shmem);
   result = gs_min2(result, result_regs);
   result = gs_min2(result, result_cta);
-
+  last_cta_issued = k.num_blocks();
   static const struct gpgpu_ptx_sim_info *last_kinfo = NULL;
   if (last_kinfo !=
       kernel_info) {  // Only print out stats if kernel_info struct changes
     last_kinfo = kernel_info;
-    printf("GPGPU-Sim uArch: CTA/core = %u, limited by:", result);
+    printf("GPGPU-Sim uArch: CTA/core = %u, limited by: %u , %d ", result , num_shader(), last_cta_issued);
     if (result == result_thread) printf(" threads");
     if (result == result_shmem) printf(" shmem");
     if (result == result_regs) printf(" regs");
@@ -3300,11 +3304,11 @@ unsigned int shader_core_config::max_cta(const kernel_info_t &k) const {
     printf("\n");
   }
 
+  // last_cta_issued = result * MAX_CTA_PER_SHADER;
   // gpu_max_cta_per_shader is limited by number of CTAs if not enough to keep
   // all cores busy
   if (k.num_blocks() < result * num_shader()) {
     result = k.num_blocks() / num_shader();
-    last_cta_issued = MAX_CTA_PER_SHADER * num_shader();
     if (k.num_blocks() % num_shader()) result++;
   }
 

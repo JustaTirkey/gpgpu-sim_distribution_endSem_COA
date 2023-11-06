@@ -1104,7 +1104,7 @@ class warp_inst_t : public inst_t {
       fprintf(fp, "%c", ((m_warp_active_mask[i]) ? '1' : '0'));
   }
   bool active(unsigned thread) const { return m_warp_active_mask.test(thread); }
-  unsigned active_count() const { return m_warp_active_mask.count(); }
+  unsigned active_count() const { return m_warp_active_mask.count(); } // this gives the number of active used to calculate the instruction count per warp justa0 
   unsigned issued_count() const {
     assert(m_empty == false);
     return m_warp_issued_mask.count();
