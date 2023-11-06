@@ -52,10 +52,15 @@
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
 
+// justa0
+extern long long int inst_ccount = 0;
+extern long long int extra = 0;
+
 // justa
-std::map<int, int> cta_number_to_m_sid;
-std::map<int, int> cta_number_to_cyclenum;
+std::map<unsigned int, long long int> cta_id_to_progress;
+std::map<int, unsigned int> cta_number_to_m_sid;
 int cta_number = 0;
+int last_cta_issued;
 
 mem_fetch *shader_core_mem_fetch_allocator::alloc(
     new_addr_type addr, mem_access_type type, unsigned size, bool wr,
@@ -1150,23 +1155,31 @@ void scheduler_unit::cycle() {
        iter != m_next_cycle_prioritized_warps.end(); iter++){
         shd_warp_t *warp = *iter;
         int prog = warp->warp_progress();
-        warp->progress[warp->get_cta_id()]+=prog;
+        auto it = cta_id_to_progress.find(warp->get_cta_id());
+        if(it != cta_id_to_progress.end())
+          cta_id_to_progress[warp->get_cta_id()]+=prog;
+        else
+          cta_id_to_progress[warp->get_cta_id()]=prog;
   }
 
 
 // justa KAWS scheduler or shorting by cta progress every 128 cta means 1 kernel 
+// if(last_cta_issued == cta_number) printf(" %d ", cta_number);
 if(cta_number != 0 && cta_number%128 == 0) {
   std::sort(m_next_cycle_prioritized_warps.begin(), m_next_cycle_prioritized_warps.end(), 
     [](shd_warp_t* a, shd_warp_t* b) {
-        if (a->progress == b->progress) {
+        if (cta_id_to_progress[a->get_cta_id()] == cta_id_to_progress[b->get_cta_id()]) {
             return a->get_warp_id() < b->get_warp_id();
         }
-        return a->cta_progress() < b->cta_progress();
+        return cta_id_to_progress[a->get_cta_id()] < cta_id_to_progress[a->get_cta_id()];
     }); 
-    printf("changing the scheduling poilcy to KAWS \n");
+    // printf("changing the scheduling poilcy to KAWS");
 
 }
-else order_warps();
+else{
+  // printf("Ever has been ????????????");
+   order_warps();
+}
 
   // justa I am checking which warp belongs to which cta 
   // limit ++;
@@ -1753,6 +1766,7 @@ void ldst_unit::get_L1T_sub_stats(struct cache_sub_stats &css) const {
   if (m_L1T) m_L1T->get_sub_stats(css);
 }
 
+// justa0 should find out what instruction in being complete and when it is called 
 void shader_core_ctx::warp_inst_complete(const warp_inst_t &inst) {
 #if 0
       printf("[warp_inst_complete] uid=%u core=%u warp=%u pc=%#x @ time=%llu \n",
@@ -1772,6 +1786,9 @@ void shader_core_ctx::warp_inst_complete(const warp_inst_t &inst) {
     m_stats->m_num_sim_insn[m_sid] += inst.active_count();
 
   m_stats->m_num_sim_winsn[m_sid]++;
+  // justa0 for instruction count 
+  inst_ccount++;
+  extra += inst.active_count();
   m_gpu->gpu_sim_insn += inst.active_count();
   inst.completed(m_gpu->gpu_tot_sim_cycle + m_gpu->gpu_sim_cycle);
 }
@@ -2592,8 +2609,9 @@ inst->space.get_type() != shared_space) { unsigned warp_id = inst->warp_id();
 */
 void ldst_unit::cycle() {
   writeback();
+  // back tracking 2 here the steps was called justa2 after writeback
   for (int i = 0; i < m_config->reg_file_port_throughput; ++i)
-    m_operand_collector->step();
+    m_operand_collector->step(); // this ocu is for load and store operations, so we model operand collection as a separate pipeline stage justa2
   for (unsigned stage = 0; (stage + 1) < m_pipeline_depth; stage++)
     if (m_pipeline_reg[stage]->empty() && !m_pipeline_reg[stage + 1]->empty())
       move_warp(m_pipeline_reg[stage], m_pipeline_reg[stage + 1]);
@@ -3286,6 +3304,7 @@ unsigned int shader_core_config::max_cta(const kernel_info_t &k) const {
   // all cores busy
   if (k.num_blocks() < result * num_shader()) {
     result = k.num_blocks() / num_shader();
+    last_cta_issued = MAX_CTA_PER_SHADER * num_shader();
     if (k.num_blocks() % num_shader()) result++;
   }
 
@@ -3401,7 +3420,7 @@ void shader_core_ctx::cycle() {
   m_stats->shader_cycles[m_sid]++;
   writeback();
   execute();
-  read_operands();
+  read_operands(); // new instruction source operand 
   issue();
   for (int i = 0; i < m_config->inst_fetch_throughput; ++i) {
     decode();
@@ -4008,6 +4027,7 @@ void opndcoll_rfu_t::dispatch_ready_cu() {
   }
 }
 
+// justa2 found this
 void opndcoll_rfu_t::allocate_cu(unsigned port_num) {
   input_port_t &inp = m_in_ports[port_num];
   for (unsigned i = 0; i < inp.m_in.size(); i++) {
@@ -4265,7 +4285,7 @@ unsigned simt_core_cluster::issue_block2core() {
       // justa
       cta_number++;
       cta_number_to_m_sid[cta_number]=m_core[core]->get_shader_id();
-      printf("CTA %d issued to shader core id %d\n",cta_number,cta_number_to_m_sid[cta_number]);
+      // printf("\nCTA %d issued to shader core id %d %d \n",cta_number,cta_number_to_m_sid[cta_number] , last_cta_issued);
 
       num_blocks_issued++;
       m_cta_issue_next_core = core;

@@ -69,6 +69,9 @@
 #define WRITE_PACKET_SIZE 8
 
 #define WRITE_MASK_SIZE 8
+// justa0
+extern long long int inst_ccount ;
+extern long long int extra;
 
 class gpgpu_context;
 
@@ -99,14 +102,7 @@ class thread_ctx_t {
 
 class shd_warp_t {
  public:
-//  justa added two variables to store cta progress 
-// map<m_cta_id, progresss> nameofvariable
-  std::map<unsigned int, int> progress;
-
-  // function to return cta_progress and warp progress justa added
-  int cta_progress(){
-    return progress[m_cta_id];
-  }
+  //  justa added two variables to store cta progress 
   int warp_progress(){
     return get_n_completed(); // return the thread count that has completed
   }
@@ -115,7 +111,6 @@ class shd_warp_t {
       : m_shader(shader), m_warp_size(warp_size) {
     m_stores_outstanding = 0;
     m_inst_in_pipeline = 0;
-    progress[m_cta_id]=0; // initialize cta progress to 0
     reset();
   }
   void reset() {
@@ -591,6 +586,8 @@ class opndcoll_rfu_t {  // operand collector based register file unit
   // modifiers
   bool writeback(warp_inst_t &warp);
 
+  // backtracking the port number to allocate the cu 
+  // this function is called after ldst unit calls for steps
   void step() {
     dispatch_ready_cu();
     allocate_reads();
@@ -1894,6 +1891,12 @@ class shader_core_ctx : public core_t {
                   const shader_core_config *config,
                   const memory_config *mem_config, shader_core_stats *stats);
 
+  void update_incount(int cta_id){
+    if(cta_id!=-1){
+      cta_inst_issued[cta_id]+=1;
+    }
+  }
+  int cta_inst_issued[MAX_CTA_PER_SHADER];
   // used by simt_core_cluster:
   // modifiers
   void cycle();
@@ -1914,6 +1917,27 @@ class shader_core_ctx : public core_t {
     printf("GPGPU-Sim uArch: Shader %d bind to kernel %u \'%s\'\n", m_sid,
            m_kernel->get_uid(), m_kernel->name().c_str());
   }
+
+  // justa0 function to calculate cta progress
+  // std::map<unsigned int, long long int>  m_cta_progress;
+  // long long int get_all_cta_progress(unsigned int id){
+  //   for(int i=0 ;i<m_config->n_thread_per_shader;i++){
+  //     if(m_threadState[i].m_cta_id >= 0 ){
+  //     unsigned int cta_id = m_threadState[i].m_cta_id;
+  //     if(cta_id == id){
+  //       auto it = m_cta_progress.find(cta_id);
+  //       if(it != m_cta_progress.end()){
+  //         m_cta_progress[cta_id] += m_threadState[i].n_insn;
+  //       }
+  //       else {
+  //         m_cta_progress[cta_id] = m_threadState[i].n_insn;
+  //       }
+  //     }
+  //     }
+  //   }
+
+  //   return m_cta_progress[id];
+  // } 
 
 // justa to get the shader id as it is protected member 
   unsigned int get_shader_id (){

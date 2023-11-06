@@ -1238,6 +1238,9 @@ void gpgpu_sim::gpu_print_stat() {
   std::string kernel_info_str = executed_kernel_info_string();
   fprintf(statfout, "%s", kernel_info_str.c_str());
 
+  // justa0 lets see the difference 
+  printf("counter I implemented = %lld\n", inst_ccount);
+  printf("extra I implemented = %lld\n", extra);
   printf("gpu_sim_cycle = %lld\n", gpu_sim_cycle);
   printf("gpu_sim_insn = %lld\n", gpu_sim_insn);
   printf("gpu_ipc = %12.4f\n", (float)gpu_sim_insn / gpu_sim_cycle);
@@ -1854,6 +1857,7 @@ void gpgpu_sim::cycle() {
         ((gpu_sim_cycle + gpu_tot_sim_cycle) >= g_single_step)) {
       raise(SIGTRAP);  // Debug breakpoint
     }
+    // justa0 instruction is added why ?
     gpu_sim_cycle++;
 
     if (g_interactive_debugger_enabled) gpgpu_debug();
