@@ -102,15 +102,23 @@ class thread_ctx_t {
 
 class shd_warp_t {
  public:
-  //  justa added two variables to store cta progress 
-  int warp_progress(){
-    return get_n_completed(); // return the thread count that has completed
+  //  justa added two variables to store warp progress and cta progress
+  long long int warp_prog;
+  long long int cta_prog;
+  long long int warp_progress(){
+    return warp_prog; // return the instruction count that has completed
   }
+  long long int cta_progress(){
+    return cta_prog; // return the instruction count that has completed
+  }
+
 
   shd_warp_t(class shader_core_ctx *shader, unsigned warp_size)
       : m_shader(shader), m_warp_size(warp_size) {
     m_stores_outstanding = 0;
     m_inst_in_pipeline = 0;
+    warp_prog=0;
+    cta_prog=0;
     reset();
   }
   void reset() {
@@ -1890,19 +1898,32 @@ class shader_core_ctx : public core_t {
                   unsigned shader_id, unsigned tpc_id,
                   const shader_core_config *config,
                   const memory_config *mem_config, shader_core_stats *stats);
-
-  void update_incount(int cta_id){
-    if(cta_id!=-1){
-      cta_inst_issued[cta_id]+=1;
-    }
-  }
-  int cta_inst_issued[MAX_CTA_PER_SHADER];
   // used by simt_core_cluster:
   // modifiers
   void cycle();
   void reinit(unsigned start_thread, unsigned end_thread,
               bool reset_not_completed);
   void issue_block2core(class kernel_info_t &kernel);
+
+  // justa added to calculate the warp progress of entire core 
+  void calc_all_warp_progress(){
+    std::map<unsigned int, long long int> cta_id_to_progress;
+
+     for (std::vector<shd_warp_t*>::iterator it = m_warp.begin(); it != m_warp.end(); ++it){
+      shd_warp_t* warp = *it;
+      auto iterr = cta_id_to_progress.find(warp->get_cta_id());
+      if(iterr!=cta_id_to_progress.end()){
+        cta_id_to_progress[warp->get_cta_id()] += warp->warp_prog;
+      }
+      else
+        cta_id_to_progress[warp->get_cta_id()] = warp->warp_prog;
+     }
+
+     for (std::vector<shd_warp_t*>::iterator it = m_warp.begin(); it != m_warp.end(); ++it){
+      shd_warp_t* warp = *it;
+      warp->cta_prog = cta_id_to_progress[warp->get_cta_id()];
+     }
+  }
 
   void cache_flush();
   void cache_invalidate();
@@ -1918,33 +1939,12 @@ class shader_core_ctx : public core_t {
            m_kernel->get_uid(), m_kernel->name().c_str());
   }
 
-  // justa0 function to calculate cta progress
-  // std::map<unsigned int, long long int>  m_cta_progress;
-  // long long int get_all_cta_progress(unsigned int id){
-  //   for(int i=0 ;i<m_config->n_thread_per_shader;i++){
-  //     if(m_threadState[i].m_cta_id >= 0 ){
-  //     unsigned int cta_id = m_threadState[i].m_cta_id;
-  //     if(cta_id == id){
-  //       auto it = m_cta_progress.find(cta_id);
-  //       if(it != m_cta_progress.end()){
-  //         m_cta_progress[cta_id] += m_threadState[i].n_insn;
-  //       }
-  //       else {
-  //         m_cta_progress[cta_id] = m_threadState[i].n_insn;
-  //       }
-  //     }
-  //     }
-  //   }
-
-  //   return m_cta_progress[id];
-  // } 
-
-// justa to get the shader id as it is protected member 
+ // justa to get the shader id as it is protected member 
   unsigned int get_shader_id (){
     return m_sid;
   }
 
-// justa to get the warp info it is protected member 
+ // justa to get the warp info it is protected member 
   std::vector<shd_warp_t *> get_m_warp(){
     return m_warp;
   }

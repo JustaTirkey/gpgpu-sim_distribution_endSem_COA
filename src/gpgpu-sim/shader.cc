@@ -1151,14 +1151,18 @@ void scheduler_unit::cycle() {
                              // waiting for pending register writes
   bool issued_inst = false;  // of these we issued one
 
-  // justa initializing the cta_id_to_prog map if not already present;
-  for (std::vector<shd_warp_t *>::const_iterator iter =
+   std::map<unsigned int,bool>Shadercore_done;
+
+   // justa calculating all warp progress 
+   for (std::vector<shd_warp_t *>::const_iterator iter =
           m_next_cycle_prioritized_warps.begin();
        iter != m_next_cycle_prioritized_warps.end(); iter++){
-        shd_warp_t *warp = *iter;
-        auto it = cta_id_to_prog.find(warp->get_cta_id());
-        if(it == cta_id_to_prog.end())
-          cta_id_to_prog[warp->get_cta_id()] = 0;
+
+        shader_core_ctx *core_used = (*iter)->get_shader();
+        if (Shadercore_done.find(core_used->get_shader_id()) == Shadercore_done.end()){
+        Shadercore_done[core_used->get_shader_id()] = true;
+        core_used->calc_all_warp_progress();
+        }
   }
 
 
@@ -1167,28 +1171,15 @@ void scheduler_unit::cycle() {
 if(cta_number != 0 && cta_number%last_cta_issued == 0) {
   std::sort(m_next_cycle_prioritized_warps.begin(), m_next_cycle_prioritized_warps.end(), 
     [](shd_warp_t* a, shd_warp_t* b) {
-        if (cta_id_to_prog[a->get_cta_id()] != cta_id_to_prog[b->get_cta_id()]) {
-        return cta_id_to_prog[a->get_cta_id()] < cta_id_to_prog[a->get_cta_id()];
+        if (a->cta_progress() != b->cta_progress()) {
+        return a->cta_progress() < b->cta_progress();
         }
         return a->get_warp_id() < b->get_warp_id();
     }); 
-
-    // printf("changing the scheduling poilcy to KAWS %lld %lld  ", cta_id_to_prog[a->get_cta_id()], cta_id_to_prog[a->get_cta_id()]);
 }
 else{
-  // printf("Ever has been ????????????");
    order_warps();
 }
-
-  // justa I am checking which warp belongs to which cta 
-  // limit ++;
-  // for (std::vector<shd_warp_t *>::const_iterator iter =
-  //         m_next_cycle_prioritized_warps.begin();
-  //      iter != m_next_cycle_prioritized_warps.end(); iter++){
-  //       shd_warp_t *warp = *iter;
-  //       class shader_core_ctx * shd_core = warp->get_shader();
-  //       printf("%d Warp %u belongs to CTA %u  and s_mid is = %d\n",limit, warp->get_warp_id(), warp->get_cta_id(),shd_core->get_shader_id());
-  // }
 
   for (std::vector<shd_warp_t *>::const_iterator iter =
            m_next_cycle_prioritized_warps.begin();
@@ -1447,10 +1438,11 @@ else{
       }
       checked++;
       
-      // justa calculate the progress of each cta every cycle
+      // justa calculate the progress of each warp every cycle
       w_icount = pI->active_count();
-      unsigned int cta_id_local = warp_id_to_cta_id[pI->warp_id_func()];
-      cta_id_to_prog[cta_id_local] += w_icount;
+      (*iter)->warp_prog+=w_icount; // warp progress being update 
+
+
     }
     if (issued) {
       // This might be a bit inefficient, but we need to maintain
