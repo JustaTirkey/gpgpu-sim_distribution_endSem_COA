@@ -1299,14 +1299,24 @@ class register_set {
     }
     return false;
   }
-  bool has_free(bool sub_core_model, unsigned reg_id) {
+  bool has_free(bool sub_core_model, unsigned reg_id, unsigned &m_id2sh) {
     // in subcore model, each sched has a one specific reg to use (based on
     // sched id)
     if (!sub_core_model) return has_free();
 
+    if(!regs[reg_id]->empty()){
     assert(reg_id < regs.size());
-    return regs[reg_id]->empty();
+    for (unsigned i = 0; i < regs.size(); i++) {
+      if (regs[i]->empty()) {
+        m_id2sh= i;
+        return true;
+      }
+    }
+    return false;
+    }
+    else return regs[reg_id]->empty();
   }
+
   bool has_ready() {
     for (unsigned i = 0; i < regs.size(); i++) {
       if (not regs[i]->empty()) {
