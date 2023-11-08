@@ -1347,10 +1347,7 @@ unsigned m_id2sh;
                   previous_issued_inst_exec_type = exec_unit_type_t::SP;
                 } else if (execute_on_INT) {
                   m_shader->issue_warp(*m_int_out, pI, active_mask, warp_id,
-                                       m_id, 
-                                       
-                                       
-                          );
+                                       m_id, m_id2sh);
                   issued++;
                   issued_inst = true;
                   warp_inst_issued = true;
