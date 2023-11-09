@@ -27,7 +27,7 @@ This repositories is dedicated to my end sem lab work done for Computer Architec
 | bfs        | KAWS           | 3052888        | 1567489 | 9785493          |
 |            | gto            | 3240806        | 1661796 | 9665624          |
 |            | lrr            | 3568550        | 1837033 | 9573071          |
-|            | KAWS           | 53352          | 21557   | 138163           |
+|NN            | KAWS           | 53352          | 21557   | 138163           |
 |            | gto            | 55433          | 19049   | 139944           |
 |            | lrr            | 46009          | 42409   | 147668           |
 | HS         | KAWS           | 407784         | 18005   | 139395           |
