@@ -35,7 +35,7 @@ This repositories is dedicated to my end sem lab work done for Computer Architec
 |            | lrr            | 682462         | 19074   | 319408           |
 
 ## Graphs end sem 
-![image](https://github.com/JustaTirkey/COA_LAB/assets/99267141/391d31c5-095f-405d-b94b-8f8ed76aa3f6)
+![image](https://github.com/JustaTirkey/gpgpu-sim_distribution_endSem_COA/assets/99267141/d96480f1-0489-46b4-b2e7-a5b8bf22ff53)
 
 ![image](https://github.com/JustaTirkey/COA_LAB/assets/99267141/9a0842a5-c48a-4181-9d0e-85fa7b9852a7)
 
